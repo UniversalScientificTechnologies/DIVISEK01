@@ -96,6 +96,13 @@ void DataOut()
   dataString += String(now.unixtime());  // Time of discharge
   dataString += ",";
 
+  for (int8_t n=0; n<9; n++)
+  {
+    sprintf(buf, "0x%02X", lightning[n]);
+    dataString += buf;
+    dataString += ",";
+  }  
+
   dataString += String(lightning[3]);  // Type of discharge
   dataString += ",";
 
@@ -109,13 +116,7 @@ void DataOut()
   dataString += ",";
 
   dataString += String(lightning[7] & 0b111111);  // Distance from storm
-
-  for (int8_t n=0; n<9; n++)
-  {
-    dataString += ",";
-    sprintf(buf, "0x%02X", lightning[n]);
-    dataString += buf;
-  }
+  dataString += ",";
 
   dataString += "\r\n";
 }
