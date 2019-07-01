@@ -59,8 +59,6 @@ void DataOut()
   dataString += ",";
 
   dataString += String(lightning[7] & 0b111111);  // Distance from storm
-  dataString += ",";
-
   dataString += "\r\n";
 }
 
@@ -153,25 +151,54 @@ void setup()
   } 
   sensor.begin();
   dataString = "";
+
+  //Wire.setClock(1000000);
+
+  const int8_t CAP = 1; 
+
+  // LCO calibration, Antenna Tuning, see manual page 35
+  Wire.beginTransmission(3); // transmit to device #3
+  Wire.write(8);             // DISP_LCO [7]  
+  Wire.write(0x80 | CAP);       
+  Wire.endTransmission();    // stop transmitting
+  delay(10000);
+  Wire.beginTransmission(3); // transmit to device #3
+  Wire.write(8);             // Stop DISP_LCO  
+  Wire.write(CAP);      
+  Wire.endTransmission();    // stop transmitting
+
+  // SRCO calibration, see manual page 36
+  Wire.beginTransmission(3); // transmit to device #3
+  Wire.write(0x3D);          // CALIB_RCO
+  Wire.endTransmission();    // stop transmitting
+  Wire.beginTransmission(3); // transmit to device #3
+  Wire.write(8);             // DISP_SRCO [6] 
+  Wire.write(0x7 | CAP);       
+  Wire.endTransmission();    // stop transmitting
+  delay(2);
+  Wire.beginTransmission(3); // transmit to device #3
+  Wire.write(8);             // Stop DISP_SRCO  
+  Wire.write(CAP);      
+  Wire.endTransmission();    // stop transmitting
 }
 
 void loop() 
 {
   if (digitalRead(INTA))
   {
-    delay(100); // minimal delay after stroke interrupt
+    delay(2); // minimal delay after stroke interrupt
 
-    Wire.requestFrom((uint8_t)3, (uint8_t)8);    // request 9 bytes from slave device #3
+    Wire.requestFrom((uint8_t)3, (uint8_t)9);    // request 9 bytes from slave device #3
 
-    for (int8_t reg=0; reg<8; reg++)
+    for (int8_t reg=0; reg<9; reg++)
     { 
       lightning[reg] = Wire.read();    // receive a byte
     }
-    event = true;
+    //event = true;
     DataOut();
   }
 
-  if(millis() - lastRead >= 1000) 
+  if(millis() - lastRead >= 10000) 
   {
     DateTime now = rtc.now();
 
@@ -199,8 +226,15 @@ void loop()
   {
     digitalWrite(LED, HIGH);  // Blink for Dasa
     Serial.print(dataString);  // print to terminal (additional 700 ms in DEBUG mode)
-    digitalWrite(LED, LOW);          
+    digitalWrite(LED, LOW);  
+/*
+    dataString = "";
+    event = false;
+  }        
 
+  if(false)
+  {
+//*/
     DDRB = 0b10111110;
     PORTB = 0b00001111;  // SDcard Power ON
 
@@ -234,6 +268,8 @@ void loop()
 
     dataString = "";
     event = false;
+
+  
   }
 
 }
