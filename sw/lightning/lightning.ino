@@ -34,7 +34,7 @@ void setup()
   Wire.write(8);             // DISP_LCO  
   Wire.write(0b10000000);       
   Wire.endTransmission();    // stop transmitting
-  delay(5000);
+  delay(10000);
   Wire.beginTransmission(3); // transmit to device #3
   Wire.write(8);             // Stop DISP_LCO  
   Wire.write(0b00000000);      

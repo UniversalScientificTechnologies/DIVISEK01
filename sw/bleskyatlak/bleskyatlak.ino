@@ -182,11 +182,17 @@ void setup()
   Wire.endTransmission();    // stop transmitting
 }
 
+
+int8_t counter = 0;
+
 void loop() 
 {
   if (digitalRead(INTA))
   {
     delay(2); // minimal delay after stroke interrupt
+
+    Serial.print(counter++);
+    Serial.println('*');
 
     Wire.requestFrom((uint8_t)3, (uint8_t)9);    // request 9 bytes from slave device #3
 
