@@ -7,6 +7,7 @@ String githash = "$Id: 4c0c30535b9db4f980f154b70911e5b2a320fb20 $";
  *  - make it work on rechargeable Li-Ion cells 
  */
 
+#define DEBUG
 #define SD_ENABLE
 #define DIVISEK_ENABLE
 #define GPS_ENABLE
@@ -110,7 +111,6 @@ void gpsMessages() {
 }
 
 void setup_GPS() {
-  Serial.println("Enabling GPS");
   digitalWrite(GPSpower, HIGH); // GPS Power ON
   delay(100);
   {
