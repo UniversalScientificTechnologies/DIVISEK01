@@ -3,11 +3,13 @@ String githash = "$Id: 4c0c30535b9db4f980f154b70911e5b2a320fb20 $";
  * https://github.com/adafruit/Adafruit_MPL3115A2_Library
  * 
  * Todo:
+ *  - include MK time library from AIRDOS_F, here the time will skew
  *  - make it work on rechargeable Li-Ion cells 
  */
 
-//#define SD_ENABLE
-//#define DIVISEK_ENABLE
+#define SD_ENABLE
+#define DIVISEK_ENABLE
+#define GPS_ENABLE
 
 #include <Adafruit_MPL3115A2.h>
 // SD MightyCore 1.0.7
@@ -21,6 +23,10 @@ String githash = "$Id: 4c0c30535b9db4f980f154b70911e5b2a320fb20 $";
 #define LED       23   // PC7
 #define INTA      24   // PA0
 #define INTP      11   // TX1 - Precipitation meter interrupt pin
+
+#define GPSpower  26   // PA2
+#define GPSerror 70000 // number of cycles for waiting for GPS in case of GPS error 
+#define GPSdelay 50    // number of measurements between obtaining GPS position
 
 unsigned long lastRead = 0;
 uint16_t count = 0;
@@ -37,6 +43,93 @@ Adafruit_MPL3115A2 sensor = Adafruit_MPL3115A2();
 RTC_Millis rtc;
 
 unsigned long lastRain = 0;
+
+void gpsMessages() {
+  // make a string for assembling the data to log:
+
+  #define MSG_NO 10    // number of logged NMEA messages
+           
+  // flush serial buffer
+  while (Serial.available()) Serial.read();
+  
+  boolean flag = false;
+  char incomingByte; 
+  int messages = 0;
+  uint32_t nomessages = 0;
+
+  /*
+  // Waits for GPS initialization
+  while(true)
+  {
+    if (Serial.available()) 
+    {
+      // read the incoming byte:
+      incomingByte = Serial.read();
+      nomessages = 0;
+      
+      if (incomingByte == '$') {messages++;}; // Prevent endless waiting
+      if (messages > 300) break; // more than 26 s
+  
+      if (flag && (incomingByte == '*')) break;
+      flag = false;
+  
+      if (incomingByte == 'A') flag = true;   // Waiting for FIX
+    }
+    else
+    {
+      nomessages++;  
+      if (nomessages > GPSerror) break; // preventing of forever waiting
+    }
+  }
+  */
+  
+  // make a string for assembling the NMEA to log:
+  flag = false;
+  messages = 0;
+  nomessages = 0;
+  while(true)
+  {
+    if (Serial.available()) 
+    {
+      // read the incoming byte:
+      incomingByte = Serial.read();
+      nomessages = 0;
+      
+      if (incomingByte == '$') {flag = true; messages++;};
+      if (messages > MSG_NO) break;
+      
+      // say what you got:
+      if (flag && (messages<=MSG_NO)) dataString+=incomingByte;
+    }
+    else
+    {
+      nomessages++;  
+      if (nomessages > GPSerror) break; // preventing of forever waiting
+    }
+  }
+}
+
+void setup_GPS() {
+  Serial.println("Enabling GPS");
+  digitalWrite(GPSpower, HIGH); // GPS Power ON
+  delay(100);
+  {
+    // Switch off Galileo and GLONASS; 68 configuration bytes
+    const char cmd[0x3C + 8]={0xB5, 0x62, 0x06, 0x3E, 0x3C, 0x00, 0x00, 0x20, 0x20, 0x07, 0x00, 0x08, 0x10, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x01, 0x03, 0x00, 0x01, 0x00, 0x01, 0x01, 0x02, 0x04, 0x08, 0x00, 0x00, 0x00, 0x01, 0x01, 0x03, 0x08, 0x10, 0x00, 0x00, 0x00, 0x01, 0x01, 0x04, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x03, 0x05, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x05, 0x06, 0x08, 0x0E, 0x00, 0x00, 0x00, 0x01, 0x01, 0x53, 0x1F};
+    for (int n=0;n<(0x3C + 8);n++) Serial.write(cmd[n]); 
+  } 
+  /*
+  {
+    // airborne <2g; 44 configuration bytes
+    const char cmd[0x24 + 8]={0xB5, 0x62 ,0x06 ,0x24 ,0x24 ,0x00 ,0xFF ,0xFF ,0x07 ,0x03 ,0x00 ,0x00 ,0x00 ,0x00 ,0x10 ,0x27 , 0x00 ,0x00 ,0x05 ,0x00 ,0xFA ,0x00 ,0xFA ,0x00 ,0x64 ,0x00 ,0x5E ,0x01 ,0x00 ,0x3C ,0x00 ,0x00 , 0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x00 ,0x85 ,0x2A};
+    for (int n=0;n<(0x24 + 8);n++) Serial.write(cmd[n]); 
+  }
+  */
+}
+
+void disable_GPS() {
+    digitalWrite(GPSpower, LOW); // GPS Power OFF
+}
 
 void rain() {
   if (millis() - lastRain >= 100)
@@ -115,10 +208,12 @@ void setup()
     digitalWrite(LED, LOW);  
   }
 
+  setup_GPS();
+
   Serial.println("#Hmmm...");
 
   // make a string for device identification output
-  dataString = "$DIVISEK,MPL,RAIN" + githash.substring(5,44) + ","; // FW version and Git hash
+  dataString = "$DIVISEK,MPL,RAIN,GPS" + githash.substring(5,44) + ","; // FW version and Git hash
   
   Wire.beginTransmission(0x58);                   // request SN from EEPROM
   Wire.write((int)0x08); // MSB
@@ -132,6 +227,10 @@ void setup()
     dataString += String(serialbyte,HEX);    
     serialhash += serialbyte;
   }
+  
+  digitalWrite(LED, HIGH);  // Blink for Dasa
+  Serial.println(dataString);  // print to terminal (additional 700 ms in DEBUG mode)
+  digitalWrite(LED, LOW);          
 
   
 #ifdef SD_ENABLE
@@ -157,10 +256,6 @@ void setup()
     {
       dataFile.println(dataString);  // write to SDcard (800 ms)     
       dataFile.close();
-  
-      digitalWrite(LED, HIGH);  // Blink for Dasa
-      Serial.println(dataString);  // print to terminal (additional 700 ms in DEBUG mode)
-      digitalWrite(LED, LOW);          
     }  
     // if the file isn't open, pop up an error:
     else 
@@ -214,9 +309,6 @@ void setup()
   pinMode(INTP, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(INTP), rain, RISING);
   interrupts();
-
-  //delay(1000);
-  //prec_count=0;
 }
 
 
@@ -229,8 +321,9 @@ void loop()
   {
     delay(2); // minimal delay after stroke interrupt
 
-    Serial.print(counter);
-    Serial.println('*');
+    counter++;
+    //Serial.print(counter);
+    //Serial.println('*');
 
     Wire.requestFrom((uint8_t)3, (uint8_t)9);    // request 9 bytes from slave device #3
 
@@ -245,6 +338,7 @@ void loop()
   if(millis() - lastRead >= 10000) 
   {
     DateTime now = rtc.now();
+    lastRead = millis();
 
     // make a string for assembling the data to log:
     dataString += "$MPL,";
@@ -264,9 +358,12 @@ void loop()
     float temperature = sensor.getTemperature();
     dataString += String(temperature); 
     dataString += "\r\n";
- 
-    lastRead = millis();
 
+    
+#ifdef GPS_ENABLE
+    gpsMessages();
+#endif
+ 
     digitalWrite(LED, HIGH);  // Blink for Dasa
     Serial.print(dataString);  // print to terminal (additional 700 ms in DEBUG mode)
     digitalWrite(LED, LOW);  
