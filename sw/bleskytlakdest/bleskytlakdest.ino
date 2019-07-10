@@ -19,7 +19,7 @@ String githash = "$Id: 4c0c30535b9db4f980f154b70911e5b2a320fb20 $";
 #include <SD.h>             // Tested with version 1.2.2.
 #include "wiring_private.h"
 #include <Wire.h>           // Tested with version 1.0.0.
-#include "RTClib.h"         // Tested with version 1.5.4.
+#include "src/RTCx/RTCx.h"  // Modified version
 
 #define LED       23   // PC7
 #define INTA      24   // PA0
@@ -37,11 +37,11 @@ uint8_t lightning[32];
 String dataString = "";
 char buf[10];
 boolean event = false;
+struct RTCx::tm tm;
 
 uint8_t prec_count = 0; // Precipitation meter counter
 
 Adafruit_MPL3115A2 sensor = Adafruit_MPL3115A2();
-RTC_Millis rtc;
 
 unsigned long lastRain = 0;
 
@@ -143,14 +143,15 @@ void DataOut()
 {
   uint32_t stroke, stroke_energy;
   
-  DateTime now = rtc.now();
+  rtc.readClock(tm);
+  RTCx::time_t t = RTCx::mktime(&tm);
 
   dataString += "$STROKE,";
 
   dataString += String(countl++); 
   dataString += ",";
 
-  dataString += String(now.unixtime());  // Time of discharge
+  dataString += String(t-946684800);  // Time of discharge
   dataString += ",";
 
   for (int8_t n=0; n<9; n++)
@@ -213,7 +214,7 @@ void setup()
   Serial.println("#Hmmm...");
 
   // make a string for device identification output
-  dataString = "$DIVISEK,MPL,RAIN,GPS" + githash.substring(5,44) + ","; // FW version and Git hash
+  dataString = "$DIVISEK,MPL-RAIN-GPS," + githash.substring(5,44) + ","; // FW version and Git hash
   
   Wire.beginTransmission(0x58);                   // request SN from EEPROM
   Wire.write((int)0x08); // MSB
@@ -302,6 +303,20 @@ void setup()
   Wire.write(8);             // Stop DISP_SRCO  
   Wire.write(CAP);      
   Wire.endTransmission();    // stop transmitting
+
+  // Indoor/Outdoor environment
+  Wire.beginTransmission(3); // transmit to device #3
+  Wire.write(0);             // AFE_GB [5:1]  
+  //Wire.write(0b00100100);    // Indoor 
+  Wire.write(0b00011100);    // Outdoor 
+  Wire.endTransmission();    // stop transmitting
+
+  // Threshold
+  Wire.beginTransmission(3); // transmit to device #3
+  Wire.write(1);             // NF_LEV [6:4], WDTH [3:0]  
+  Wire.write(0b00100010);    // Default 
+  Wire.endTransmission();    // stop transmitting
+
 #endif
 
   // RAIN: Add hook for precipitation device interrupt
@@ -309,6 +324,10 @@ void setup()
   pinMode(INTP, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(INTP), rain, RISING);
   interrupts();
+
+  // Initiating RTC
+  rtc.autoprobe();
+  rtc.resetClock();
 }
 
 
@@ -337,7 +356,8 @@ void loop()
 
   if(millis() - lastRead >= 10000) 
   {
-    DateTime now = rtc.now();
+    rtc.readClock(tm);
+    RTCx::time_t t = RTCx::mktime(&tm);
     lastRead = millis();
 
     // make a string for assembling the data to log:
@@ -345,7 +365,7 @@ void loop()
 
     dataString += String(count++); 
     dataString += ",";
-    dataString += String(now.unixtime());  // Time of measurement
+    dataString += String(t-946684800);  // Time of measurement
     dataString += ",";
 
     dataString += String(prec_count);
