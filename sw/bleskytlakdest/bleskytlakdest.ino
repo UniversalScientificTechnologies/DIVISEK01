@@ -29,7 +29,7 @@ String githash = "$Id: 4c0c30535b9db4f980f154b70911e5b2a320fb20 $";
 #define GPSerror 70000 // number of cycles for waiting for GPS in case of GPS error 
 #define GPSdelay 50    // number of measurements between obtaining GPS position
 
-unsigned long lastRead = 0;
+unsigned long lastRead;
 uint16_t count = 0;
 uint16_t countl = 0;
 uint32_t serialhash = 0;
@@ -57,37 +57,13 @@ void gpsMessages() {
   char incomingByte; 
   int messages = 0;
   uint32_t nomessages = 0;
+  uint8_t parsing = 0;
 
-  /*
-  // Waits for GPS initialization
-  while(true)
-  {
-    if (Serial.available()) 
-    {
-      // read the incoming byte:
-      incomingByte = Serial.read();
-      nomessages = 0;
-      
-      if (incomingByte == '$') {messages++;}; // Prevent endless waiting
-      if (messages > 300) break; // more than 26 s
-  
-      if (flag && (incomingByte == '*')) break;
-      flag = false;
-  
-      if (incomingByte == 'A') flag = true;   // Waiting for FIX
-    }
-    else
-    {
-      nomessages++;  
-      if (nomessages > GPSerror) break; // preventing of forever waiting
-    }
-  }
-  */
-  
   // make a string for assembling the NMEA to log:
   flag = false;
   messages = 0;
   nomessages = 0;
+
   while(true)
   {
     if (Serial.available()) 
@@ -96,8 +72,25 @@ void gpsMessages() {
       incomingByte = Serial.read();
       nomessages = 0;
       
-      if (incomingByte == '$') {flag = true; messages++;};
-      if (messages > MSG_NO) break;
+      if (incomingByte == '$') 
+      {
+        flag = true; 
+      };
+      if (flag && (incomingByte == '\n')) 
+      {
+        messages++;
+      };
+      if (messages > MSG_NO) 
+      {
+        rtc.readClock(tm);
+        RTCx::time_t t = RTCx::mktime(&tm);
+      
+        dataString += "\n$TIME,";
+        dataString += String(t-946684800);  // Time of discharge
+        dataString += "\r\n";
+
+        break;
+      }
       
       // say what you got:
       if (flag && (messages<=MSG_NO)) dataString+=incomingByte;
@@ -187,6 +180,10 @@ void setup()
   }
 
   Serial.println("#Cvak...");
+
+  // Initiating RTC
+  rtc.autoprobe();
+  rtc.resetClock();
 
   DDRB = 0b10011110;
   PORTB = 0b00000000;  // SDcard Power OFF
@@ -321,13 +318,11 @@ void setup()
 
   // RAIN: Add hook for precipitation device interrupt
   lastRain = millis();
+  lastRead = millis();
+  
   pinMode(INTP, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(INTP), rain, RISING);
   interrupts();
-
-  // Initiating RTC
-  rtc.autoprobe();
-  rtc.resetClock();
 }
 
 
