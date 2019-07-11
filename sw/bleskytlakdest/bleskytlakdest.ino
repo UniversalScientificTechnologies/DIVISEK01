@@ -31,7 +31,7 @@ String githash = "$Id: 4c0c30535b9db4f980f154b70911e5b2a320fb20 $";
 
 unsigned long lastRead;
 uint16_t count = 0;
-uint16_t countl = 0;
+uint16_t countl = 0;      // Lightning counter
 uint32_t serialhash = 0;
 uint8_t lightning[32];
 String dataString = "";
@@ -364,6 +364,7 @@ void loop()
     dataString += ",";
 
     dataString += String(prec_count);
+    prec_count = 0; // Reset precipitation after 10 seconds
     dataString += ",";
     
     float pressure = sensor.getPressure();
