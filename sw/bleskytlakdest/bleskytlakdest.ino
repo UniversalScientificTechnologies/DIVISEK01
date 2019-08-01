@@ -22,6 +22,7 @@ String githash = "$Id: 4c0c30535b9db4f980f154b70911e5b2a320fb20 $";
 #include "src/RTCx/RTCx.h"  // Modified version
 
 #define LED       23   // PC7
+#define LED_OUT   10   // TX1/PD2
 #define INTA      24   // PA0
 #define INTP      11   // TX1 - Precipitation meter interrupt pin
 
@@ -196,14 +197,18 @@ void setup()
   PORTD = 0b00000000;  // SDcard Power OFF
 
   pinMode(LED, OUTPUT);
+  pinMode(LED_OUT, OUTPUT);
   digitalWrite(LED, LOW);  
+  digitalWrite(LED_OUT, LOW);  
   
   for(int i=0; i<5; i++)  
   {
     delay(50);
     digitalWrite(LED, HIGH);  // Blink for Dasa 
+    digitalWrite(LED_OUT, HIGH);  // Blink for Marek 
     delay(50);
     digitalWrite(LED, LOW);  
+    digitalWrite(LED_OUT, LOW);  
   }
 
   setup_GPS();
@@ -227,8 +232,10 @@ void setup()
   }
   
   digitalWrite(LED, HIGH);  // Blink for Dasa
+  digitalWrite(LED_OUT, HIGH);  // Blink for Marek
   Serial.println(dataString);  // print to terminal (additional 700 ms in DEBUG mode)
   digitalWrite(LED, LOW);          
+  digitalWrite(LED_OUT, LOW);          
 
   
 #ifdef SD_ENABLE
@@ -381,8 +388,10 @@ void loop()
 #endif
  
     digitalWrite(LED, HIGH);  // Blink for Dasa
+    digitalWrite(LED_OUT, HIGH);  // Blink for Marek
     Serial.print(dataString);  // print to terminal (additional 700 ms in DEBUG mode)
     digitalWrite(LED, LOW);  
+    digitalWrite(LED_OUT, LOW);  
 
 #ifdef SD_ENABLE
     {
