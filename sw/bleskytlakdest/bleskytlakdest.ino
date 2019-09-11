@@ -10,7 +10,7 @@ String githash = "$Id: 4c0c30535b9db4f980f154b70911e5b2a320fb20 $";
 #define DEBUG
 #define SD_ENABLE
 #define DIVISEK_ENABLE
-#define GPS_ENABLE
+//!!!#define GPS_ENABLE
 
 #include <Adafruit_MPL3115A2.h>
 // SD MightyCore 1.0.7
@@ -288,7 +288,7 @@ void setup()
   Wire.write(8);             // DISP_LCO [7]  
   Wire.write(0x80 | CAP);       
   Wire.endTransmission();    // stop transmitting
-  delay(10000);
+  delay(10000); //**************** Right displayed frequency must be from 30.16 kHz to 32.34 kHz (center 31.25 kHz)
   Wire.beginTransmission(3); // transmit to device #3
   Wire.write(8);             // Stop DISP_LCO  
   Wire.write(CAP);      
@@ -373,13 +373,14 @@ void loop()
     dataString += String(prec_count);
     prec_count = 0; // Reset precipitation after 10 seconds
     dataString += ",";
-    
+    /*!!!!!!!!!!!!!!!!!
     float pressure = sensor.getPressure();
     dataString += String(pressure); 
     dataString += ",";
 
     float temperature = sensor.getTemperature();
     dataString += String(temperature); 
+    */
     dataString += "\r\n";
 
     
