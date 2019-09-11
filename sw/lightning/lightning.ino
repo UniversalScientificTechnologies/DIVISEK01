@@ -3,8 +3,9 @@
 #include "wiring_private.h"
 #include <Wire.h>
 
-#define INT 20 // PC4 ATmega 1248
-//!!! #define INT 8 // ATmega 328P
+#define INT 24 // PA0 ATmega 1248 Divisek
+//#define INT 20 // PC4 ATmega 1248
+//#define INT 8 // ATmega 328P
 
 void setup()
 {
@@ -21,6 +22,37 @@ void setup()
   pinMode(INT, INPUT);
 
 //!!!  Wire.setClock(100000);
+
+  // Antenna Tuning, see manual page 35
+  Wire.beginTransmission(3); // transmit to device #3
+  Wire.write(8);             // DISP_LCO  
+  Wire.write(0b00000000);       
+  Wire.endTransmission();    // stop transmitting
+
+  // LCO calibration, Antenna Tuning, see manual page 35
+  Wire.beginTransmission(3); // transmit to device #3
+  Wire.write(8);             // DISP_LCO  
+  Wire.write(0b10000000);       
+  Wire.endTransmission();    // stop transmitting
+  delay(10000);
+  Wire.beginTransmission(3); // transmit to device #3
+  Wire.write(8);             // Stop DISP_LCO  
+  Wire.write(0b00000000);      
+  Wire.endTransmission();    // stop transmitting
+
+  // SRCO calibration, see manual page 36
+  Wire.beginTransmission(3); // transmit to device #3
+  Wire.write(0x3D);          // CALIB_RCO
+  Wire.endTransmission();    // stop transmitting
+  Wire.beginTransmission(3); // transmit to device #3
+  Wire.write(8);             // DISP_SRCO  
+  Wire.write(0b01000000);       
+  Wire.endTransmission();    // stop transmitting
+  delay(2);
+  Wire.beginTransmission(3); // transmit to device #3
+  Wire.write(8);             // Stop DISP_SRCO  
+  Wire.write(0b00000000);      
+  Wire.endTransmission();    // stop transmitting
 
 /*
   Wire.beginTransmission(3); // transmit to device #44 (0x2c)
