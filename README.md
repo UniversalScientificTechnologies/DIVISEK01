@@ -1,6 +1,6 @@
 # DIVISEK01A Lightning detector
 
-![DIVISEK01 device mounted on the car roof](doc/img/bDIVISEK01.png)
+![DIVISEK01 device mounted on the car roof](doc/img/DIVISEK01.png)
 
 
 The unit is used for triggering of recording in any another scientific instruments during thunderstorm observations. 
